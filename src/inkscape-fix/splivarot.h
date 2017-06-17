@@ -264,4 +264,53 @@ Geom::PathVector pathliv_to_pathvector(Path *pathliv){
     return outres;
 }
 
+
+Geom::PathVector pathv_outline(const Geom::PathVector& pathv0, double width,
+    const std::string& join, const std::string& butt, double miterlimit
+){
+
+    double o_width = width;
+    double o_miter = miterlimit * o_width;
+    JoinType o_join = join == "miter" ? join_pointy
+                    : join == "round" ? join_round
+                    :                   join_straight;
+    ButtType o_butt = butt == "square" ? butt_square
+                    : butt == "round"  ? butt_round
+                    :                    butt_straight;
+
+    if (o_width < 0.032)
+        o_width = 0.032;
+
+    {
+        Geom::PathVector pathv = pathv_to_linear_and_cubic_beziers(pathv0);
+        Path *orig = new Path;
+        Path *res = new Path;
+        Shape *theShape = new Shape;
+        Shape *theRes = new Shape;
+
+        orig->LoadPathVector(pathv);
+        orig->Outline(res, 0.5 * o_width, o_join, o_butt, 0.5 * o_miter);
+        orig->Coalesce(0.5 * o_width);
+
+
+        res->SetBackData(false);
+        res->ConvertWithBackData(1.0);
+        res->Fill(theShape, 0);
+        theRes->ConvertToShape(theShape, fill_positive);
+
+        // Path *originaux[1];
+        // originaux[0] = res;
+        // theRes->ConvertToForme(orig, 1, originaux);
+        Geom::PathVector* ret_pathv= res->MakePathVector();
+
+        delete theShape;
+        delete theRes;
+        delete res;
+        delete orig;
+
+        return *ret_pathv;
+
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////

@@ -46,6 +46,9 @@ Geom::PathVector boolop_intersection(const Geom::PathVector& a, const Geom::Path
     return sp_pathvector_boolop(a,b, bool_op_inters, fill_oddEven,fill_oddEven);
 }
 
+Geom::PathVector boolop_self_union(const Geom::PathVector& a){
+    return sp_pathvector_boolop(a,a, bool_op_union, fill_nonZero, fill_nonZero);
+}
 
 
 
@@ -75,11 +78,15 @@ BOOST_PYTHON_MODULE(_pysplivarot)
     /* path IO from/to svg string */
     def("parse_svgd", parse_svgd);
     def("format_svgd", format_svgd,
-        (arg("self"), arg("prec")=-1, args("optimize")=false, arg("shorthands")=true));
+        (arg("pathvector"), arg("prec")=-1, args("optimize")=false, arg("shorthands")=true));
 
     /* boolean operations on PathVectors */
     def("boolop_union", &boolop_union);
     def("boolop_difference", &boolop_difference);
     def("boolop_intersection", &boolop_intersection);
+    def("boolop_self_union", &boolop_self_union);
+
+    def("outline", &pathv_outline,
+        (arg("pathvector"), arg("width"), args("join")="round", arg("butt")="round", arg("miterlimit")=1));
 
 }
