@@ -14,7 +14,7 @@ def setup() :
 
     FIXLIB_NAME = 'fixlivarotlib'
 
-    include_dirs =[
+    include_dirs = [
         'src', 'src/inkscape-fix',
         INKSCAPE_SRC,
         find_include_dir_for('glib.h'),
@@ -22,32 +22,37 @@ def setup() :
     ]
 
     class InstallCommand(install):
-        """"compile .so file with missing symbols before compiling extension so we can link against it"""
+        """"compile .a file with missing symbols before compiling extension so we can link against it"""
 
         def run(self) :
             cmd = [
                 'x86_64-linux-gnu-gcc', '-Wall', '-g', #TODO un-harcode compiler
                 '-I'+INKSCAPE_SRC, '-Isrc/inkscape-fix',
-                '-fPIC', '-shared',
+                '-c', '-fPIC',
+                '-o', os.path.join(PACKAGE_NAME, FIXLIB_NAME+'.o'),
                 'src/inkscape-fix/stringstream.cpp',
-                '-o', os.path.join(PACKAGE_NAME, 'lib%s.so'%FIXLIB_NAME)
             ]
             subprocess.check_call(cmd)
+            subprocess.check_call(['ar', 'rcs',
+                os.path.join(PACKAGE_NAME, 'lib%s.a' % FIXLIB_NAME),
+                os.path.join(PACKAGE_NAME, FIXLIB_NAME+'.o'),
+            ])
 
             install.run(self)
 
     class InstallLibCommand(install_lib):
-        """copy missing symbols .so to module directory to be available at runtime"""
+        """copy missing symbols .a to module directory to be available at runtime"""
         def run(self):
             install_lib.run(self)
 
             dest = os.path.join(self.install_dir, PACKAGE_NAME)
             subprocess.check_call(['mv',
-                os.path.join(PACKAGE_NAME, 'lib%s.so'%FIXLIB_NAME),
+                os.path.join(PACKAGE_NAME, 'lib'+FIXLIB_NAME+'.a'),
                 dest
             ])
 
-            with open(os.path.join(dest, 'ld_library_path'), 'w') as out :
+            txt_path = os.path.join(dest, 'ld_library_path')
+            with open(txt_path, 'w') as out :
                 print >>out, ':'.join([
                     os.path.abspath(dest),
                     INKSCAPE_HOME+'/build/lib',
