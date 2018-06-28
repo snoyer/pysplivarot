@@ -1,7 +1,7 @@
-import os
+import os, sys
 import subprocess
 import setuptools
-from setuptools.command.install import install
+from setuptools.command.build_py import build_py
 from setuptools.command.install_lib import install_lib
 
 
@@ -21,7 +21,7 @@ def setup() :
         find_include_dir_for('glibconfig.h'),
     ]
 
-    class InstallCommand(install):
+    class BuildPyCommand(setuptools.command.build_py.build_py):
         """"compile .a file with missing symbols before compiling extension so we can link against it"""
 
         def run(self) :
@@ -38,7 +38,7 @@ def setup() :
                 os.path.join(PACKAGE_NAME, FIXLIB_NAME+'.o'),
             ])
 
-            install.run(self)
+            build_py.run(self)
 
     class InstallLibCommand(install_lib):
         """copy missing symbols .a to module directory to be available at runtime"""
@@ -53,10 +53,10 @@ def setup() :
 
             txt_path = os.path.join(dest, 'ld_library_path')
             with open(txt_path, 'w') as out :
-                print >>out, ':'.join([
+                out.write(':'.join([
                     os.path.abspath(dest),
                     INKSCAPE_HOME+'/build/lib',
-                ])
+                ]))
 
 
     setuptools.setup(
@@ -70,15 +70,18 @@ def setup() :
         install_requires=[],
         ext_modules=[
             setuptools.Extension(
-                PACKAGE_NAME+'._'+PACKAGE_NAME,
-                ['src/pysplivarot.cpp'],
+                name='_'+PACKAGE_NAME,
+                sources=['src/pysplivarot.cpp'],
                 include_dirs=include_dirs,
                 library_dirs=[INKSCAPE_LIB, PACKAGE_NAME],
-                libraries=['boost_python', 'livarot_LIB', '2geom_LIB', FIXLIB_NAME, 'gsl', 'blas', 'cairo', 'glib-2.0'],
+                libraries=[
+                    'boost_python3' if sys.version_info >= (3,0) else 'boost_python2',
+                    'livarot_LIB', '2geom_LIB', FIXLIB_NAME, 'gsl', 'blas', 'cairo', 'glib-2.0'
+                ],
             ),
         ],
         cmdclass = {
-            'install': InstallCommand,
+            'build_py': BuildPyCommand,
             'install_lib': InstallLibCommand,
         },
 
@@ -88,7 +91,7 @@ def setup() :
 def locate(*names) :
     p = subprocess.Popen(['locate']+list(names), stdout=subprocess.PIPE, stderr=subprocess.PIPE,)
     out,err = p.communicate()
-    return out.splitlines()
+    return [l.decode('utf8') for l in out.splitlines()]
 
 def find_include_dir_for(name) :
     def score(path) :
@@ -98,7 +101,6 @@ def find_include_dir_for(name) :
             len([f for f in folders if f.startswith('.')]),
             len(folders),
         )
-
     candidates = (path for path in locate(name) if path.endswith(name))
     for best in sorted(candidates, key=score) :
         best_dir = best[:-len(name)-1]
